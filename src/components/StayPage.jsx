@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { BrandMark, SiteFooter, SiteHeader } from './Brand'
 import Gallery from './Gallery'
 import BookingCard from './BookingCard'
 import Content from './Content'
@@ -13,30 +14,17 @@ export default function StayPage({ listing, company }) {
       <a className="skip" href="#overview">
         Skip to stay details
       </a>
-      <header className="site-header">
-        <a className="brand" href="#homes">
-          <span className="brand-mark" aria-hidden="true" />
-          <span>
-            <strong>{company.name}</strong>
-            <small>All homes</small>
-          </span>
-        </a>
-        <nav aria-label="On this page">
-          <a href="#overview">Overview</a>
-          <a href="#spaces">Spaces</a>
-          <a href="#amenities">Amenities</a>
-          <a href="#location">Location</a>
-          <a href="#host">Host</a>
-        </nav>
-      </header>
+      <SiteHeader company={company} back />
 
       <main id="top">
         <Gallery listing={listing} gallery={gallery} setGallery={setGallery} />
         <div className="page">
           <header className="title-block" id="overview">
-            <p className="eyebrow">
-              {listing.overview} · managed by {company.name}
+            <p className="brand-kicker">
+              <BrandMark />
+              <span>A {company.name} home</span>
             </p>
+            <p className="eyebrow">{listing.overview}</p>
             <h1>{listing.name}</h1>
             <p className="meta">
               {rating.count > 0 ? (
@@ -88,14 +76,11 @@ export default function StayPage({ listing, company }) {
         </div>
       </main>
 
-      <footer className="site-footer">
-        <p>
-          {company.name} manages {listing.name}.
-        </p>
+      <SiteFooter company={company}>
         <a href={listing.url} target="_blank" rel="noreferrer">
-          View the original listing
+          Original listing
         </a>
-      </footer>
+      </SiteFooter>
     </>
   )
 }

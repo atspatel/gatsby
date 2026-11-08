@@ -1,5 +1,44 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { photoUrl } from '../format'
+
+function CollageShot({ photo, wide, listingName, onOpen }) {
+  const [visible, setVisible] = useState(photo)
+  const [previous, setPrevious] = useState(null)
+  const visibleRef = useRef(photo)
+  const size = wide ? 1440 : 960
+
+  useEffect(() => {
+    if (!photo?.url || photo.url === visibleRef.current.url) return undefined
+    let cancel = false
+    const incoming = new Image()
+    const shown = visibleRef.current
+    incoming.onload = () => {
+      if (cancel) return
+      visibleRef.current = photo
+      setPrevious(shown)
+      setVisible(photo)
+    }
+    incoming.src = photoUrl(photo.url, size)
+    return () => {
+      cancel = true
+    }
+  }, [photo, size])
+
+  return (
+    <button type="button" className="shot" onClick={() => onOpen(visible.url)}>
+      {previous && <img src={photoUrl(previous.url, size)} alt="" />}
+      <img
+        key={visible.url}
+        className={previous ? 'is-entering' : undefined}
+        src={photoUrl(visible.url, size)}
+        alt={`${visible.room} at ${listingName}`}
+        onAnimationEnd={(event) => {
+          if (event.animationName === 'shot-enter') setPrevious(null)
+        }}
+      />
+    </button>
+  )
+}
 
 export default function Gallery({ listing, gallery, setGallery }) {
   const photos = useMemo(
@@ -23,6 +62,44 @@ export default function Gallery({ listing, gallery, setGallery }) {
     photos.forEach((photo) => add(photo.url, photo.room))
     return chosen
   }, [listing, photos])
+
+  const [frames, setFrames] = useState(mosaic)
+  const hold = useRef(false)
+  const lastSlot = useRef(-1)
+
+  useEffect(() => {
+    setFrames(mosaic)
+  }, [mosaic])
+
+  useEffect(() => {
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)')
+    if (motion.matches || gallery.open || photos.length <= frames.length) return undefined
+    let timer = 0
+    const tick = () => {
+      const wait = 1200 + Math.random() * 1000
+      timer = window.setTimeout(() => {
+        if (!hold.current && !document.hidden) {
+          setFrames((current) => {
+            let slot = Math.floor(Math.random() * current.length)
+            if (current.length > 1 && slot === lastSlot.current) {
+              slot = (slot + 1) % current.length
+            }
+            lastSlot.current = slot
+            const used = new Set(current.map((item) => item.url))
+            const pool = photos.filter((item) => !used.has(item.url))
+            if (pool.length === 0) return current
+            const next = pool[Math.floor(Math.random() * pool.length)]
+            const copy = current.slice()
+            copy[slot] = next
+            return copy
+          })
+        }
+        tick()
+      }, wait)
+    }
+    tick()
+    return () => window.clearTimeout(timer)
+  }, [gallery.open, photos, frames.length])
 
   const rooms = ['All', ...listing.photos.by_room.map((room) => room.name)]
   const visible = gallery.room === 'All' ? photos : photos.filter((photo) => photo.room === gallery.room)
@@ -71,19 +148,29 @@ export default function Gallery({ listing, gallery, setGallery }) {
 
   return (
     <section className="gallery-wrap" aria-label="Photos">
-      <div className="mosaic">
-        {mosaic.map((photo, photoIndex) => (
-          <button
-            key={photo.url}
-            type="button"
-            className="shot"
-            onClick={() => openAt(photo.url)}
-          >
-            <img
-              src={photoUrl(photo.url, photoIndex === 0 ? 1600 : 900)}
-              alt={`${photo.room} at ${listing.name}`}
-            />
-          </button>
+      <div
+        className="mosaic"
+        onMouseEnter={() => {
+          hold.current = true
+        }}
+        onMouseLeave={() => {
+          hold.current = false
+        }}
+        onFocusCapture={() => {
+          hold.current = true
+        }}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget)) hold.current = false
+        }}
+      >
+        {frames.map((photo, photoIndex) => (
+          <CollageShot
+            key={photoIndex}
+            photo={photo}
+            wide={photoIndex === 0}
+            listingName={listing.name}
+            onOpen={openAt}
+          />
         ))}
         <button type="button" className="show-all" onClick={() => openAt(photos[0].url)}>
           Show all {photos.length} photos

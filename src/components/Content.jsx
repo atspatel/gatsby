@@ -1,8 +1,21 @@
 import { useState } from 'react'
-import { photoUrl, splitBullets } from '../format'
+import { omitStayTimes, photoUrl, splitBullets, staySchedule } from '../format'
 import RichText from './RichText'
 import MapView from './MapView'
 import Ratings from './Ratings'
+
+function StayNote({ text }) {
+  const parts = text.split(/(\bearly check-?ins?\b|\bextensions?\b)/gi)
+  return (
+    <small>
+      <span>
+        {parts.map((part, index) =>
+          /^(?:early check-?ins?|extensions?)$/i.test(part) ? <b key={index}>{part}</b> : part,
+        )}
+      </span>
+    </small>
+  )
+}
 
 export default function Content({ listing, onOpenRoom }) {
   const [showAmenities, setShowAmenities] = useState(false)
@@ -14,6 +27,7 @@ export default function Content({ listing, onOpenRoom }) {
   const offered = listing.amenities.filter((group) => group.group !== 'Not included')
   const missing = listing.amenities.find((group) => group.group === 'Not included')
   const amenityCount = offered.reduce((sum, group) => sum + group.amenities.length, 0)
+  const schedule = staySchedule(listing)
 
   return (
     <div className="content">
@@ -21,12 +35,34 @@ export default function Content({ listing, onOpenRoom }) {
 
       <section aria-labelledby="about-title">
         <h2 id="about-title">About this home</h2>
-        {listing.description.sections.map((section) => (
-          <div key={section.heading || 'intro'} className="prose-block">
-            {section.heading && <h3>{section.heading}</h3>}
-            <RichText text={section.text} />
+        {schedule && (
+          <div className="stay-times" aria-label="Check-in and checkout">
+            <article className={schedule.checkInNote ? 'has-note' : undefined}>
+              <div>
+                <span>Check-in</span>
+                <strong>{schedule.checkIn || 'Ask the host'}</strong>
+              </div>
+              {schedule.checkInNote && <StayNote text={schedule.checkInNote} />}
+            </article>
+            <article className={schedule.checkOutNote ? 'has-note' : undefined}>
+              <div>
+                <span>Checkout</span>
+                <strong>{schedule.checkOut || 'Ask the host'}</strong>
+              </div>
+              {schedule.checkOutNote && <StayNote text={schedule.checkOutNote} />}
+            </article>
           </div>
-        ))}
+        )}
+        {listing.description.sections.map((section) => {
+          const text = omitStayTimes(section.text, schedule)
+          if (!section.heading && !text.trim()) return null
+          return (
+            <div key={section.heading || 'intro'} className="prose-block">
+              {section.heading && <h3>{section.heading}</h3>}
+              <RichText text={text} />
+            </div>
+          )
+        })}
       </section>
 
       <section id="spaces" aria-labelledby="spaces-title">
@@ -186,47 +222,6 @@ export default function Content({ listing, onOpenRoom }) {
             </li>
           ))}
         </ul>
-      </section>
-
-      <section id="host" className="host" aria-labelledby="host-title">
-        <div className="host-card">
-          <div className="host-head">
-            <img src={listing.host.profile_picture_url} alt="" />
-            <div>
-              <h2 id="host-title">Hosted by {listing.host.name}</h2>
-              <p className="host-badges">
-                {listing.host.is_superhost && <span className="superhost">Superhost</span>}
-                {listing.host.is_verified && <span>Identity verified</span>}
-              </p>
-            </div>
-          </div>
-          <ul className="host-stats">
-            <li>
-              <strong>{listing.host.reviews}</strong>
-              <span>Reviews</span>
-            </li>
-            <li>
-              <strong>{listing.host.rating}</strong>
-              <span>Rating</span>
-            </li>
-            <li>
-              <strong>{listing.host.years_hosting}</strong>
-              <span>{String(listing.host.years_hosting) === '1' ? 'Year hosting' : 'Years hosting'}</span>
-            </li>
-          </ul>
-          <p className="host-response">
-            {listing.host.response_rate}
-            {listing.host.response_time ? ` · ${listing.host.response_time}` : ''}
-          </p>
-          <RichText text={listing.host.about} />
-          {listing.host.highlights?.length > 0 && (
-            <ul className="host-chips">
-              {listing.host.highlights.map((item) => (
-                <li key={item}>{item}</li>
-              ))}
-            </ul>
-          )}
-        </div>
       </section>
     </div>
   )

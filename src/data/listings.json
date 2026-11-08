@@ -1,7 +1,8 @@
 {
   "company": {
     "name": "Gatsby",
-    "role": "Manages every home in this collection"
+    "role": "Manages every home in this collection",
+    "tagline": "Homes in Gurugram, the hills, and Goa."
   },
   "listings": [
     {
